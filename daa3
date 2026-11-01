@@ -42,3 +42,17 @@ int main() {
     cout << "Maximum value = " << fractionalKnapsack(items, W) << endl;
     return 0;
 }
+
+
+/* inputs :
+3
+10 60
+20 100
+30 120
+50
+
+Enter number of items: 3
+Enter weight and value of each item:
+Enter knapsack capacity: 50
+Maximum value = 240
+*/
