@@ -28,3 +28,6 @@ int main() {
     cout << "Iterative  F(" << n << ") = " << fibIterative(n) << endl;
     return 0;
 }
+
+
+//input : 10
