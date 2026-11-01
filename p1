@@ -1,0 +1,76 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+
+# ---------- 1. Load ----------
+df = pd.read_csv("uber.csv")
+print("Original shape:", df.shape)
+print("\nMissing values:\n", df.isnull().sum())
+
+# ---------- 2. Pre-process ----------
+df = df.drop(columns=["Unnamed: 0", "key"])          # useless columns
+df = df.dropna()                                      # remove rows with missing values
+df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"])
+df["hour"]    = df["pickup_datetime"].dt.hour
+df["day"]     = df["pickup_datetime"].dt.day
+df["month"]   = df["pickup_datetime"].dt.month
+df["year"]    = df["pickup_datetime"].dt.year
+df["weekday"] = df["pickup_datetime"].dt.weekday
+df = df.drop(columns=["pickup_datetime"])
+
+# Haversine formula: distance (km) between pickup and drop-off
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+    a = (np.sin((lat2 - lat1) / 2) ** 2
+         + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2)
+    return 2 * R * np.arcsin(np.sqrt(a))
+
+df["distance_km"] = haversine(df.pickup_latitude, df.pickup_longitude,
+                              df.dropoff_latitude, df.dropoff_longitude)
+
+# ---------- 3. Identify and remove outliers ----------
+print("\nBefore cleaning:\n", df[["fare_amount", "passenger_count", "distance_km"]].describe().round(2))
+
+Q1, Q3 = df["fare_amount"].quantile([0.25, 0.75])
+IQR = Q3 - Q1
+print("\nFare IQR limits: %.2f to %.2f" % (Q1 - 1.5 * IQR, Q3 + 1.5 * IQR))
+print("Fares outside IQR limits:", ((df.fare_amount < Q1 - 1.5*IQR) | (df.fare_amount > Q3 + 1.5*IQR)).sum())
+
+before = len(df)
+df = df[(df.fare_amount > 0) & (df.fare_amount < 100)]
+df = df[(df.passenger_count >= 1) & (df.passenger_count <= 6)]
+df = df[(df.pickup_latitude.between(40.5, 41)) & (df.dropoff_latitude.between(40.5, 41))]
+df = df[(df.pickup_longitude.between(-74.3, -73.6)) & (df.dropoff_longitude.between(-74.3, -73.6))]
+df = df[(df.distance_km > 0) & (df.distance_km < 100)]
+print("\nRows removed as outliers:", before - len(df), "| Rows left:", len(df))
+
+plt.figure(figsize=(6, 3)); sns.boxplot(x=df["fare_amount"]); plt.title("Fare after cleaning")
+plt.savefig("uber_boxplot.png", dpi=100, bbox_inches="tight"); plt.close()
+
+# ---------- 4. Correlation ----------
+corr = df.corr()
+print("\nCorrelation with fare_amount:\n", corr["fare_amount"].sort_values(ascending=False).round(3))
+plt.figure(figsize=(9, 7)); sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm")
+plt.savefig("uber_corr.png", dpi=100, bbox_inches="tight"); plt.close()
+
+# ---------- 5. Models ----------
+X = df.drop(columns="fare_amount")
+y = df["fare_amount"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+models = {
+    "Linear Regression": LinearRegression(),
+    "Random Forest":     RandomForestRegressor(n_estimators=100, max_depth=20, n_jobs=-1, random_state=42),
+}
+print("\n%-20s %8s %8s %8s" % ("Model", "R2", "RMSE", "MAE"))
+for name, m in models.items():
+    m.fit(X_train, y_train)
+    p = m.predict(X_test)
+    print("%-20s %8.4f %8.4f %8.4f" % (name, r2_score(y_test, p),
+          np.sqrt(mean_squared_error(y_test, p)), mean_absolute_error(y_test, p)))
