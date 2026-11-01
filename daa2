@@ -77,3 +77,18 @@ int main() {
     freeTree(root);
     return 0;
 }
+
+//input : aaaabbc
+/*
+Enter text: aaaabbc
+
+Char  Freq  Code
+  a     4    1
+  b     2    01
+  c     1    00
+
+Encoded: 1111010100
+Original bits: 56
+Encoded bits : 10
+
+*/
