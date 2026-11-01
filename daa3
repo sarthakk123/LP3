@@ -1,0 +1,44 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+struct Item {
+    double weight, value;
+};
+
+// Sort by value/weight ratio, highest first
+bool cmp(Item a, Item b) {
+    return (a.value / a.weight) > (b.value / b.weight);
+}
+
+double fractionalKnapsack(vector<Item>& items, double capacity) {
+    sort(items.begin(), items.end(), cmp);
+
+    double totalValue = 0;
+    for (auto& it : items) {
+        if (capacity >= it.weight) {            // take the whole item
+            capacity -= it.weight;
+            totalValue += it.value;
+        } else {                                // take a fraction and stop
+            totalValue += it.value * (capacity / it.weight);
+            break;
+        }
+    }
+    return totalValue;
+}
+
+int main() {
+    int n;
+    double W;
+    cout << "Enter number of items: ";
+    cin >> n;
+    vector<Item> items(n);
+    cout << "Enter weight and value of each item:\n";
+    for (int i = 0; i < n; i++) cin >> items[i].weight >> items[i].value;
+    cout << "Enter knapsack capacity: ";
+    cin >> W;
+
+    cout << "Maximum value = " << fractionalKnapsack(items, W) << endl;
+    return 0;
+}
