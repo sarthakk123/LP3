@@ -1,0 +1,79 @@
+#include <iostream>
+#include <queue>
+#include <map>
+#include <vector>
+using namespace std;
+
+struct Node {
+    char ch;
+    int freq;
+    Node *left, *right;
+    Node(char c, int f) : ch(c), freq(f), left(nullptr), right(nullptr) {}
+};
+
+// Min-heap: smallest frequency comes first
+struct Compare {
+    bool operator()(Node* a, Node* b) { return a->freq > b->freq; }
+};
+
+// Walk the tree and record each leaf's code
+void generateCodes(Node* root, string code, map<char, string>& codes) {
+    if (!root) return;
+    if (!root->left && !root->right) {          // leaf node
+        codes[root->ch] = code.empty() ? "0" : code;
+        return;
+    }
+    generateCodes(root->left,  code + "0", codes);
+    generateCodes(root->right, code + "1", codes);
+}
+
+void freeTree(Node* root) {
+    if (!root) return;
+    freeTree(root->left);
+    freeTree(root->right);
+    delete root;
+}
+
+int main() {
+    string text;
+    cout << "Enter text: ";
+    getline(cin, text);
+
+    // Step 1: count frequencies
+    map<char, int> freq;
+    for (char c : text) freq[c]++;
+
+    // Step 2: push all characters into the min-heap
+    priority_queue<Node*, vector<Node*>, Compare> pq;
+    for (auto& p : freq) pq.push(new Node(p.first, p.second));
+
+    // Step 3: build the Huffman tree (greedy merging)
+    while (pq.size() > 1) {
+        Node* l = pq.top(); pq.pop();
+        Node* r = pq.top(); pq.pop();
+        Node* parent = new Node('\0', l->freq + r->freq);
+        parent->left = l;
+        parent->right = r;
+        pq.push(parent);
+    }
+    Node* root = pq.top();
+
+    // Step 4: generate codes
+    map<char, string> codes;
+    generateCodes(root, "", codes);
+
+    cout << "\nChar  Freq  Code\n";
+    for (auto& p : codes)
+        cout << "  " << p.first << "     " << freq[p.first] << "    " << p.second << endl;
+
+    // Encode the text
+    string encoded;
+    for (char c : text) encoded += codes[c];
+
+    cout << "\nEncoded: " << encoded << endl;
+    cout << "Original bits: " << text.size() * 8 << endl;
+    cout << "Encoded bits : " << encoded.size() << endl;
+
+    freeTree(root);
+    return 0;
+}
