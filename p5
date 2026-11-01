@@ -1,0 +1,49 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import (confusion_matrix, accuracy_score,
+                             precision_score, recall_score)
+
+# ---------- 1. Load ----------
+df = pd.read_csv("diabetes.csv")
+print("Shape:", df.shape)
+print(df["Outcome"].value_counts().to_string())
+
+# ---------- 2. Pre-process ----------
+# 0 is impossible for these columns, so it really means "missing". Replace by median.
+cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
+for c in cols:
+    df[c] = df[c].replace(0, np.nan)
+    df[c] = df[c].fillna(df[c].median())
+
+X = df.drop(columns="Outcome")
+y = df["Outcome"]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y)
+
+# KNN uses distances, so scale features to the same range
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test  = sc.transform(X_test)
+
+# ---------- 3. Choose k ----------
+print("\nAccuracy for different k:")
+for k in range(1, 16, 2):
+    m = KNeighborsClassifier(n_neighbors=k).fit(X_train, y_train)
+    print("k = %2d -> %.4f" % (k, m.score(X_test, y_test)))
+
+# ---------- 4. Final model (k = 5) ----------
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train, y_train)
+pred = knn.predict(X_test)
+
+cm = confusion_matrix(y_test, pred)
+tn, fp, fn, tp = cm.ravel()
+acc = accuracy_score(y_test, pred)
+print("\nConfusion matrix [[TN FP] [FN TP]]:\n", cm)
+print("Accuracy  : %.4f" % acc)
+print("Error rate: %.4f" % (1 - acc))
+print("Precision : %.4f" % precision_score(y_test, pred))
+print("Recall    : %.4f" % recall_score(y_test, pred))
